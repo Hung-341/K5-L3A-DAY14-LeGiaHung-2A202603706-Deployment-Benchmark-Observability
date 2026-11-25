@@ -123,7 +123,7 @@ Server: nginx
 
 ### Exercise 3.1: Railway deployment
 
-- URL: `<PUBLIC_URL>`
+- URL: `https://agent-production-801fc1a9.up.railway.app`
 - Screenshot: [dashboard](screenshots/dashboard.png), [running](screenshots/running.png), [test](screenshots/test.png)
 - Chi tiết lệnh kiểm tra và biến môi trường: [DEPLOYMENT.md](DEPLOYMENT.md)
 
