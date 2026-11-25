@@ -108,10 +108,12 @@ Stack chạy bằng `docker compose -p k5-day14-observability` trong `06-lab-com
 
 ### 4.1 Screenshot
 
-- [ ] Dashboard Grafana khi đang có tải (thấy rõ Golden Signals): [grafana-dashboard.png](screenshots/grafana-dashboard.png)
-- [ ] Một trace chậm trong Jaeger (thấy span nào chiếm thời gian): [jaeger-slow-trace.png](screenshots/jaeger-slow-trace.png)
-- [ ] Một trace lỗi trong Jaeger (có event `exception`): [jaeger-error-trace.png](screenshots/jaeger-error-trace.png)
-- [ ] Trang Alerts của Prometheus với ít nhất 1 alert đang **firing**: [prometheus-alert-firing.png](screenshots/prometheus-alert-firing.png)
+- [x] Dashboard Grafana khi đang có tải (thấy rõ Golden Signals): [grafana-dashboard.png](screenshots/grafana-dashboard.png). Locust 15 user, 2 instance: 9.0 req/s, error rate 1.01 %, p95 296.63 ms.
+- [x] Một trace chậm trong Jaeger (thấy span nào chiếm thời gian): [jaeger-slow-trace.png](screenshots/jaeger-slow-trace.png). Trace `7f80737`, chi tiết ở mục 4.3.
+- [x] Một trace lỗi trong Jaeger (có event `exception`): [jaeger-error-trace.png](screenshots/jaeger-error-trace.png). Trace `12ec433`, chi tiết ở mục 4.3.
+- [x] Trang Alerts của Prometheus với ít nhất 1 alert đang **firing**: [prometheus-alert-firing.png](screenshots/prometheus-alert-firing.png). Đặt cùng lúc `MOCK_ERROR_RATE=0.2` và `MOCK_SLOW_RATE=0.3` lúc 21:44:44: `AgentHighErrorRate` firing lúc 21:46:10, `AgentHighLatencyP95` firing lúc 21:47:12, ảnh có cả hai alert.
+
+Bốn ảnh chụp bằng Chromium headless (Playwright) trong lần chạy stack lúc 21:41–21:47 ngày 25/11/2026.
 
 **Exercise 7.4.** Số đọc từ các query của dashboard trên Prometheus, khi Locust chạy 100 user (25/11/2026, 20:12 và 20:14):
 
@@ -146,22 +148,23 @@ v1 vẫn trả 200 nhanh và rẻ hơn, nên latency, error rate và cost đều
 
 ### 4.3 Debug bằng trace
 
-Chọn 1 trace chậm nhất bạn tìm được (tìm trong 1000 trace gần nhất của service `observable-agent`, sau lần chạy Locust scale 3 instance):
+Chọn 1 trace chậm nhất bạn tìm được (trace chậm nhất trong 221 trace của service `observable-agent` ở lần chạy chụp ảnh; đây là trace trong `jaeger-slow-trace.png`):
 
-- `trace_id`: `80c6451340640139f7054760c6f621c5`
-- Tổng thời gian: 1712.4 ms
-- Span chiếm nhiều thời gian nhất: `chat mock-llm-small` (1691.4 ms, 98.8 %). `agent.retrieve_context` chỉ mất 18.3 ms (1.1 %). Request này rơi vào nhóm "slow" của mock LLM (`MOCK_SLOW_RATE=0.03`), nên cần tối ưu hoặc đặt timeout ở bước gọi LLM, không phải ở retrieval.
+- `trace_id`: `7f80737f0edb94204e6b113691a43ac7`
+- Tổng thời gian: 1690.0 ms
+- Span chiếm nhiều thời gian nhất: `chat mock-llm-small` (1661.5 ms, 98.3 %). `agent.retrieve_context` chỉ mất 25.3 ms (1.5 %). Request này rơi vào nhóm "slow" của mock LLM (`MOCK_SLOW_RATE=0.03`), nên cần tối ưu hoặc đặt timeout ở bước gọi LLM, không phải ở retrieval.
 - Dòng log tương ứng (grep theo `trace_id`):
 
 ```json
-{"ts": "2026-11-25T13:15:43.643053+00:00", "level": "INFO", "service": "observable-agent", "instance": "19991389b52b", "event": "llm_call", "trace_id": "80c6451340640139f7054760c6f621c5", "span_id": "d9814908884d29be", "request_id": "e23ad54d0a51", "model": "mock-llm-small", "agent_version": "v2", "input_tokens": 74, "output_tokens": 37, "cost_usd": 3.3e-05, "llm_ms": 1691.4}
-{"ts": "2026-11-25T13:15:43.643449+00:00", "level": "INFO", "service": "observable-agent", "instance": "19991389b52b", "event": "http_request", "trace_id": "80c6451340640139f7054760c6f621c5", "span_id": "d9814908884d29be", "request_id": "e23ad54d0a51", "method": "POST", "route": "/ask", "status": 200, "ms": 1711.7}
+{"ts": "2026-11-25T14:41:50.900020+00:00", "level": "INFO", "service": "observable-agent", "instance": "6c86a7f6e350", "event": "llm_call", "trace_id": "7f80737f0edb94204e6b113691a43ac7", "span_id": "400afd9bee11b910", "request_id": "16c6b836c451", "model": "mock-llm-small", "agent_version": "v2", "input_tokens": 74, "output_tokens": 37, "cost_usd": 3.3e-05, "llm_ms": 1660.5}
+{"ts": "2026-11-25T14:41:50.901078+00:00", "level": "INFO", "service": "observable-agent", "instance": "6c86a7f6e350", "event": "http_request", "trace_id": "7f80737f0edb94204e6b113691a43ac7", "span_id": "400afd9bee11b910", "request_id": "16c6b836c451", "method": "POST", "route": "/ask", "status": 200, "ms": 1689.1}
 ```
 
-Trace lỗi dùng cho ảnh: `trace_id` `724726d5f3ffa82feff73aaac8967de3`, tổng 101.4 ms, status 503. Span `agent.run` và `chat mock-llm-small` có event `exception` với `utils.mock_llm.LLMError: Upstream LLM error: 503 Service Unavailable (mock)`. Log tương ứng:
+Trace lỗi trong `jaeger-error-trace.png`: `trace_id` `12ec433e5ab982a2cbe7e16680ef3753`, tổng 125.6 ms, status 503. Span `agent.run` (114.8 ms) và `chat mock-llm-small` (90.4 ms) có event `exception` với `exception.type = utils.mock_llm.LLMError`, `exception.message = Upstream LLM error: 503 Service Unavailable (mock)`. Log tương ứng:
 
 ```json
-{"ts": "2026-11-25T13:15:50.264332+00:00", "level": "INFO", "service": "observable-agent", "instance": "19991389b52b", "event": "llm_error", "trace_id": "724726d5f3ffa82feff73aaac8967de3", "span_id": "b89d2fd9a3fbbe35", "request_id": "f460d1dc77dc", "error": "Upstream LLM error: 503 Service Unavailable (mock)"}
+{"ts": "2026-11-25T14:41:51.993092+00:00", "level": "INFO", "service": "observable-agent", "instance": "6c86a7f6e350", "event": "llm_error", "trace_id": "12ec433e5ab982a2cbe7e16680ef3753", "span_id": "844e80e1ce7d0ec7", "request_id": "9694d1426225", "error": "Upstream LLM error: 503 Service Unavailable (mock)"}
+{"ts": "2026-11-25T14:41:51.993907+00:00", "level": "INFO", "service": "observable-agent", "instance": "6c86a7f6e350", "event": "http_request", "trace_id": "12ec433e5ab982a2cbe7e16680ef3753", "span_id": "844e80e1ce7d0ec7", "request_id": "9694d1426225", "method": "POST", "route": "/ask", "status": 503, "ms": 123.9}
 ```
 
 ---
