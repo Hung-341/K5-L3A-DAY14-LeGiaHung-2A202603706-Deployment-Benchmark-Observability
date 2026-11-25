@@ -279,8 +279,36 @@ Hai instance còn lại phục vụ tiếp, history tăng từ 10 lên 18 tin nh
 
 ## Part 6: Final Project — output `check_production_ready.py`
 
+Chạy bản đầy đủ (có Docker) ngày 25/11/2026 trong container Linux `python:3.11-slim` (`os.name = posix`, Docker CLI nối vào Docker Desktop qua `/var/run/docker.sock`, `--network host`), thư mục làm việc `06-lab-complete/`. Trên Windows, mục Graceful shutdown chỉ đạt ⚠️ vì Windows không gửi được SIGTERM, nên bài kiểm tra SIGTERM phải chạy trên Linux.
+
 ```text
-<DÁN_OUTPUT_CHECKER>
+✅ 1. Dockerfile (multi-stage, < 500 MB)
+     ✅ Docker: build image thành công — 18s
+     ✅ Docker: image < 500 MB — 238 MB
+
+✅ 11. Graceful shutdown
+     ✅ Code xử lý SIGTERM / lifespan shutdown
+     ✅ Khi chạy: SIGTERM lúc đang có request → request vẫn 200, process tự thoát — exit code 0
+     ✅ Docker: `docker stop` tắt êm (exit code 0, < 10s) — exit code 0, 0.8s
+
+================================================================
+  📋 Checklist Deliverable
+     ✅ Dockerfile (multi-stage, < 500 MB)
+     ✅ docker-compose.yml (agent + redis)
+     ✅ .dockerignore
+     ✅ Health check endpoint (GET /health)
+     ✅ Readiness endpoint (GET /ready)
+     ✅ API Key authentication
+     ✅ Rate limiting
+     ✅ Cost guard
+     ✅ Config từ environment variables
+     ✅ Structured logging
+     ✅ Graceful shutdown
+     ✅ Public URL ready (Railway / Render config)
+----------------------------------------------------------------
+  Result: 12/12 tiêu chí đạt · 43/43 checks passed
+  🎉 PASS 12/12 — PRODUCTION READY! Deploy nào!
+================================================================
 ```
 
 ## AI log
